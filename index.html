@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Cold-Chain Monitor</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+:root {
+  --bg: #020b1c;
+  --panel: #081b37;
+  --border: #1b416c;
+  --blue: #2588ff;
+  --cyan: #23d9ff;
+  --green: #16e0b0;
+  --red: #ff5577;
+  --text: #f0f6ff;
+  --muted: #9bb4d5;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: radial-gradient(ellipse at top, #092650, var(--bg) 65%);
+  color: var(--text);
+  font-family: "Segoe UI", Arial, sans-serif;
+  min-height: 100vh;
+}
+button, input { font: inherit; }
+button {
+  color: white;
+  border: 1px solid #3979c0;
+  border-radius: 13px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #1479e9, #123d9d);
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s, filter .2s;
+}
+button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 22px #168bff66;
+  filter: brightness(1.18);
+}
+button:active { transform: scale(.96); }
+header {
+  padding: 20px 28px;
+  background: linear-gradient(110deg, #06152e, #0a2a51);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.brand { display: flex; align-items: center; gap: 15px; }
+.logo {
+  font-size: 34px;
+  background: linear-gradient(135deg, #147dff, #20e0ff);
+  padding: 12px;
+  border-radius: 15px;
+  box-shadow: 0 0 25px #168bff55;
+}
+h1 { font-size: 25px; margin: 0; }
+h1 span { color: var(--cyan); }
+.subtitle { color: var(--muted); font-size: 13px; margin-top: 5px; }
+.header-right {
+  display: flex; gap: 20px; align-items: center;
+  color: var(--muted); font-size: 13px;
+}
+.live-dot {
+  display: inline-block; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--green);
+  margin-right: 6px; box-shadow: 0 0 12px var(--green);
+}
+.layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: calc(100vh - 90px);
+}
+aside {
+  padding: 20px 12px;
+  background: #04132a;
+  border-right: 1px solid #112d50;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  padding: 14px 10px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  color: #b5c9e8;
+  cursor: pointer;
+  transition: background .2s, color .2s, box-shadow .2s;
+  font-size: 14px;
+}
+.nav-item:hover, .nav-item.active {
+  color: white;
+  background: linear-gradient(100deg, #126fe0, #1035a2);
+  box-shadow: 0 4px 18px #0759d955;
+  transform: translateX(3px);
+}
+.safe-box {
+  margin-top: 45px; padding: 15px 10px;
+  border: 1px solid var(--border); border-radius: 13px;
+  color: var(--muted); font-size: 12px;
+}
+.safe-box strong {
+  display: block; color: var(--green);
+  font-size: 17px; margin-top: 7px;
+}
+main { padding: 24px; min-width: 0; }
+.section-title { font-size: 22px; margin: 0 0 7px; }
+.section-desc { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px; margin-bottom: 22px;
+}
+.metric {
+  border-radius: 16px; padding: 20px;
+  border: 1px solid #2861a6;
+  background: linear-gradient(135deg, #103b83, #081b3e);
+  transition: .25s; animation: appear .6s ease both;
+}
+.metric:nth-child(2) {
+  background: linear-gradient(135deg, #064c55, #08253c);
+  border-color: #087d87; animation-delay: .08s;
+}
+.metric:nth-child(3) {
+  background: linear-gradient(135deg, #352b83, #161d4d);
+  border-color: #5b4cc2; animation-delay: .16s;
+}
+.metric:nth-child(4) {
+  background: linear-gradient(135deg, #672643, #301c42);
+  border-color: #a33c66; animation-delay: .24s;
+}
+.metric:hover { transform: translateY(-5px); box-shadow: 0 8px 25px #0005; }
+.metric-label { color: #c0d5f2; font-size: 13px; }
+.metric-icon { font-size: 24px; margin-bottom: 12px; }
+.metric-value { font-size: 27px; font-weight: 700; margin: 8px 0; }
+.metric-foot { color: #adc5e5; font-size: 11px; }
+.panel {
+  background: linear-gradient(130deg, #0a2142ee, #07172ff5);
+  border: 1px solid var(--border); border-radius: 17px;
+  padding: 22px; margin-bottom: 18px;
+  box-shadow: 0 8px 25px #0002; animation: appear .5s ease both;
+}
+.panel-heading {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.panel-heading h2 { font-size: 21px; margin: 0; }
+.muted { color: var(--muted); font-size: 13px; }
+.simulator-layout {
+  display: grid; grid-template-columns: 1.5fr 1fr;
+  gap: 20px; align-items: center;
+}
+.controls { padding-top: 12px; }
+.temp-buttons {
+  display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 20px;
+}
+.temp-buttons button { min-width: 110px; }
+button.high { background: linear-gradient(135deg, #ffb03b, #ed562e); border-color: #ffb03b; }
+button.low { background: linear-gradient(135deg, #7555ff, #3731b8); }
+button.test {
+  background: linear-gradient(100deg, #00bdf3, #8a4fff, #ec5dc1);
+  border: 0; font-weight: bold;
+}
+.custom-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+input {
+  width: 100px; padding: 11px; border-radius: 9px;
+  background: #0b2040; border: 1px solid #31547b;
+  color: white; outline: none;
+}
+input:focus { border-color: var(--cyan); box-shadow: 0 0 10px #23d9ff44; }
+.package-art { text-align: center; padding: 25px 10px; }
+.package-circle {
+  width: 160px; height: 160px; margin: auto;
+  display: grid; place-items: center;
+  border: 2px solid #149de8; border-radius: 50%;
+  background: radial-gradient(circle, #14509a, #081c3b 72%);
+  box-shadow: 0 0 40px #008bff33, inset 0 0 35px #168aff22;
+  font-size: 77px; animation: float 4s ease-in-out infinite;
+}
+.safe-range { margin-top: 23px; font-size: 13px; color: var(--cyan); }
+.safe-range strong { display: block; color: white; font-size: 24px; margin: 7px 0; }
+.range-bar {
+  height: 12px; border-radius: 10px; margin: 12px 0 6px;
+  background: linear-gradient(90deg, #249bff, #19e0ad 42%, #ffcf54 75%, #ff4669);
+}
+.range-labels { display: flex; justify-content: space-between; color: var(--muted); }
+.alert {
+  padding: 13px 15px; border-radius: 12px;
+  background: #10382f; border: 1px solid #137e6b;
+  color: #69f2c6; margin-top: 20px; font-size: 13px; transition: .2s;
+}
+.alert.danger {
+  background: #ff123f;
+  border: 3px solid #ffffff;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+  animation: alertBlink 0.6s steps(2, start) infinite;
+  box-shadow: 0 0 25px #ff123f;
+}
+
+@keyframes alertBlink {
+  0%, 100% {
+    background: #7a001b;
+    box-shadow: 0 0 10px #ff123f;
+  }
+  50% {
+    background: #ff123f;
+    box-shadow: 0 0 30px #ff123f;
+  }
+}
+.history-grid {
+  display: grid; grid-template-columns: 1fr 1.15fr;
+  gap: 20px; margin-top: 18px;
+}
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; padding: 13px 10px; background: #122e53; color: #d5e6ff; }
+td { padding: 12px 10px; border-bottom: 1px solid #183558; }
+tbody tr { transition: background .2s; }
+tbody tr:hover { background: #15355b; }
+.badge {
+  display: inline-block; padding: 5px 9px; border-radius: 20px;
+  font-size: 10px; font-weight: bold; white-space: nowrap;
+}
+.badge.ok { background: #075c50; color: #63f3cb; }
+.badge.bad { background: #70243e; color: #ff9bb1; }
+.secondary { background: #102c50; border-color: #315780; margin-top: 14px; }
+.graph-area {
+  min-width: 0; background: #07172c;
+  border: 1px solid #18385d; border-radius: 12px; padding: 15px;
+}
+.graph-title { font-weight: bold; margin-bottom: 12px; }
+canvas { display: block; width: 100%; height: 240px; }
+#shipmentMap { height: 390px; width: 100%; border-radius: 14px; border: 1px solid #1b416c; z-index: 1; background: #0b2040; }
+.tracking-note { line-height: 1.6; }
+.hidden { display: none !important; }
+footer { text-align: center; color: #7793b8; font-size: 11px; padding: 10px 0 24px; }
+@keyframes appear {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes pulse { 50% { box-shadow: 0 0 20px #ff557744; } }
+@media (max-width: 1050px) {
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .simulator-layout, .history-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 650px) {
+  header { padding: 16px; }
+  .header-right { display: none; }
+  .layout { grid-template-columns: 1fr; }
+  aside { display: flex; overflow-x: auto; padding: 8px; border-right: 0; }
+  .nav-item { white-space: nowrap; margin: 0 4px; padding: 11px; }
+  .safe-box { display: none; }
+  main { padding: 14px; }
+  .metrics { gap: 9px; }
+  .metric { padding: 13px; }
+  .metric-value { font-size: 21px; }
+  .panel { padding: 15px; }
+  #shipmentMap { height: 330px; }
+}
+/* SMART COOLING & HEATING CONTROLLER */
+.climate-controller {
+  background: linear-gradient(135deg, #101f35, #172d46);
+  border: 1px solid #31516b;
+  border-radius: 18px;
+  padding: 22px;
+  margin: 22px 0;
+  color: #f4f8ff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+
+.climate-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.climate-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.auto-badge {
+  background: #123d32;
+  color: #65f0b0;
+  padding: 7px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.climate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.climate-device {
+  background: rgba(255,255,255,0.055);
+  border: 1px solid #344b62;
+  border-radius: 14px;
+  padding: 18px;
+  transition: 0.25s ease;
+}
+
+.climate-device.device-active {
+  border-color: #46e2ac;
+  box-shadow: 0 0 18px rgba(70, 226, 172, 0.12);
+}
+
+.device-icon {
+  font-size: 30px;
+  margin-bottom: 10px;
+}
+
+.device-name {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.device-status {
+  color: #aabbd0;
+  font-size: 13px;
+}
+
+.device-status.active {
+  color: #62f0b0;
+  font-weight: 700;
+}
+
+.climate-reading {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px;
+}
+
+.climate-reading small {
+  color: #b3c3d5;
+}
+
+.climate-reading strong {
+  display: block;
+  font-size: 27px;
+  margin: 7px 0;
+}
+
+.climate-message {
+  margin-top: 14px;
+  padding: 13px;
+  border-radius: 10px;
+  background: #153b31;
+  color: #75f0b8;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.climate-message.warning {
+  background: #512b18;
+  color: #ffc17a;
+}
+
+.climate-message.danger {
+  background: #501e2b;
+  color: #ff8798;
+  animation: climatePulse 1s infinite alternate;
+}
+
+@keyframes climatePulse {
+  from { opacity: 1; }
+  to { opacity: 0.65; }
+}
+
+@media (max-width: 520px) {
+  .climate-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== LOGIN PORTAL ===== */
+#loginScreen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at top, #092650, #020b1c 75%);
+}
+
+#loginScreen[hidden],
+#dashboardApp[hidden] {
+  display: none !important;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 430px;
+  padding: 34px;
+  background: linear-gradient(145deg, #0a2142, #061329);
+  border: 1px solid #1b416c;
+  border-radius: 22px;
+  box-shadow: 0 0 45px #168bff22;
+}
+
+.login-logo {
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  font-size: 36px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #147dff, #20e0ff);
+  box-shadow: 0 0 25px #168bff55;
+}
+
+.login-card h2 {
+  margin: 0;
+  text-align: center;
+  font-size: 26px;
+}
+
+.login-card h2 span {
+  color: var(--cyan);
+}
+
+.login-description {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 10px 0 28px;
+}
+
+.login-card label {
+  display: block;
+  color: #d5e6ff;
+  font-size: 13px;
+  margin: 16px 0 8px;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 13px;
+  background: #0b2040;
+  color: white;
+  border: 1px solid #31547b;
+  border-radius: 10px;
+  outline: none;
+}
+
+.login-card input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px #23d9ff33;
+}
+
+.login-password-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-password-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.login-password-row button {
+  padding: 11px;
+  background: #102c50;
+  border-color: #315780;
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: 22px;
+  font-weight: bold;
+}
+
+.login-error {
+  color: #ff7898;
+  font-size: 13px;
+  min-height: 18px;
+  margin: 12px 0 0;
+}
+
+.login-security {
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 22px;
+}
+
+#logoutButton {
+  background: linear-gradient(135deg, #b82d4d, #791b39);
+  border-color: #ff5577;
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 25px 20px;
+  }
+}
+</style>
+</head>
+
+
+<body>
+
+<!-- LOGIN PORTAL -->
+<section id="loginScreen">
+  <div class="login-card">
+
+    <div class="login-logo">📦</div>
+
+    <h2>Smart Cold-Chain <span>Monitor</span></h2>
+
+    <p class="login-description">
+      Welcome back! Sign in to access your shipment
+      monitoring dashboard.
+    </p>
+
+    <form id="loginForm">
+      <label for="loginEmail">Email Address</label>
+      <input
+        type="email"
+        id="loginEmail"
+        placeholder="Enter your email"
+        autocomplete="username"
+        required
+      >
+
+      <label for="loginPassword">Password</label>
+
+      <div class="login-password-row">
+        <input
+          type="password"
+          id="loginPassword"
+          placeholder="Enter your password"
+          autocomplete="current-password"
+          required
+        >
+
+        <button type="button" id="toggleLoginPassword">
+          Show
+        </button>
+      </div>
+
+      <p id="loginError" class="login-error"
+         role="alert" aria-live="polite"></p>
+
+      <button type="submit" class="login-submit">
+        Sign In →
+      </button>
+    </form>
+
+    <div class="login-security">
+      ❄ Smart monitoring · Demo access portal
+    </div>
+
+  </div>
+</section>
+
+<!-- EXISTING DASHBOARD STARTS HERE -->
+<div id="dashboardApp" hidden>
+
+<header>
+  <div class="brand">
+    <div class="logo">📦</div>
+    <div>
+      <h1>Smart Cold-Chain <span>Monitor</span></h1>
+      <div class="subtitle">Keeping biologics safe, from origin to destination</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div><span class="live-dot"></span>Demo Mode<br>Simulated Data</div>
+    <div id="clock">Loading time...</div>
+  </div>
+</header>
+
+<div class="layout">
+<aside>
+  <div class="nav-item active" data-view="dashboard"><span aria-hidden="true">⌂</span><span>Dashboard</span></div>
+  <div class="nav-item" data-view="simulator"><span aria-hidden="true">♨</span><span>Live Monitoring</span></div>
+  <div class="nav-item" data-view="history"><span aria-hidden="true">◷</span><span>History</span></div>
+  <div class="nav-item" data-view="alerts"><span aria-hidden="true">♧</span><span>Alerts</span></div>
+  <div class="nav-item" data-view="prediction"><span aria-hidden="true">✧</span><span>Prediction</span></div>
+  <div class="nav-item" data-view="tracking"><span aria-hidden="true">⌖</span><span>Shipment Tracking</span></div>
+  <div class="nav-item" data-view="emergency"><span aria-hidden="true">🆘</span><span>Emergency SOS</span></div>
+  <div class="nav-item" data-view="climateController"><span aria-hidden="true">❄</span><span>Cooling &amp; Heating</span></div>
+  <div class="nav-item" data-view="settings"><span aria-hidden="true">⚙</span><span>Settings</span></div>
+  <div class="safe-box">
+    ❄ &nbsp; Safe Temperature
+    <strong>2°C – 8°C</strong>
+    <span>Example demo limits</span>
+  </div>
+</aside>
+
+<main>
+<section id="dashboard">
+  <div class="metrics">
+    <div class="metric">  
+      <div class="metric-icon">🌡️</div>
+      <div class="metric-label">Current Temperature</div>
+      <div class="metric-value" id="temperature">5.0 °C</div>
+      <div class="metric-foot" id="updated">Initializing...</div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon">🛡️</div>
+      <div class="metric-label">Package Status</div>
+      <div class="metric-value" id="status">IN RANGE</div>
+      <div class="metric-foot">Safe range: 2°C – 8°C</div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon">▤</div>
+      <div class="metric-label">Total Readings</div>
+      <div class="metric-value" id="total">1</div>
+      <div class="metric-foot">Recorded in this session</div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon">⚠️</div>
+      <div class="metric-label">Excursion Events</div>
+      <div class="metric-value" id="excursions">0</div>
+      <div class="metric-foot">Out-of-range readings</div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="simulator">
+  <div class="panel-heading">
+    <h2>🧪 Temperature Simulator</h2>
+    <span class="muted">Shipment CC-001</span>
+  </div>
+  <p class="muted">Test how your dashboard responds to different temperatures.</p>
+  <div class="simulator-layout">
+    <div class="controls">
+      <div class="temp-buttons">
+        <button onclick="addReading(5)">❄ Normal · 5°C</button>
+        <button onclick="addReading(7)">❄ Normal · 7°C</button>
+        <button class="high" onclick="addReading(10)">⚠ High · 10°C</button>
+        <button class="low" onclick="addReading(0)">❄ Low · 0°C</button>
+      </div>
+      <div class="custom-row">
+        <label for="customTemp">🌡 Enter temperature:</label>
+        <input id="customTemp" type="number" value="6" step="0.1">
+        <span>°C</span>
+        <button class="test" onclick="testCustom()">▶ Test</button>
+      </div>
+      <div class="alert" id="alert" role="status" aria-live="assertive">
+  ✓ All systems ready.
+</div>
+
+<div style="margin-top:10px">
+  <button onclick="enableAlertSound()">
+    🔔 Enable Alert Sound
+  </button>
+
+  <button onclick="silenceAlertSound()">
+    🔇 Silence
+  </button>
+</div>
+    </div>
+    <div class="package-art">
+      <div class="package-circle" id="packageIcon">📦</div>
+      <div class="safe-range">
+        SAFE RANGE
+        <strong>2°C – 8°C</strong>
+        <div class="range-bar"></div>
+        <div class="range-labels"><span id="minRangeLabel">2°C</span><span id="maxRangeLabel">8°C</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="history">
+  <div class="panel-heading">
+    <h2>◷ Temperature History</h2>
+    <button class="secondary" style="margin:0" onclick="downloadCSV()">⇩ Download CSV</button>
+  </div>
+  <p class="muted">Recent temperature readings from your simulated shipment.</p>
+  <div class="history-grid">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Temperature</th><th>Status</th></tr></thead>
+        <tbody id="historyRows"></tbody>
+      </table>
+    </div>
+    <div class="graph-area">
+      <div class="graph-title">📈 Temperature Trend</div>
+      <canvas id="chart"></canvas>
+      <div class="muted">Green band indicates the example safe range.</div>
+    </div>
+  </div>
+  <button class="secondary" onclick="resetDemo()">↻ Reset Demo</button>
+</section>
+
+<section class="panel hidden" id="alerts">
+  <h2>⚠ Excursion Alerts</h2>
+  <p class="muted">Recorded out-of-range readings in this browser session.</p>
+  <div id="alertList">No excursions recorded.</div>
+</section>
+
+<section class="panel hidden" id="prediction">
+  <h2>✧ Viability Prediction</h2>
+  <p class="muted">Real product viability requires validated, product-specific stability data.</p>
+  <div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-top:18px">
+    <div class="metric"><div class="metric-label">Out-of-range readings</div><div class="metric-value" id="predictionEvents">0</div><div class="metric-foot">Observed in this demo only</div></div>
+    <div class="metric"><div class="metric-label">Recent trend</div><div class="metric-value" id="trendDirection">Waiting</div><div class="metric-foot" id="trendDetail">Record at least two readings</div></div>
+    <div class="metric"><div class="metric-label">Next demo estimate</div><div class="metric-value" id="forecastTemp">-- °C</div><div class="metric-foot">Simple trend estimate, not a real forecast</div></div>
+  </div>
+  <div class="alert">This page estimates only a short-term temperature trend from simulated readings. It does not predict product viability or determine whether any medicine is usable.</div>
+</section>
+
+<section class="panel hidden" id="tracking">
+  <div class="panel-heading">
+    <h2>📍 Shipment GPS Tracking</h2>
+    <span class="badge ok">DEMO MODE</span>
+  </div>
+  <p class="muted tracking-note">
+    Interactive map preview for shipment CC-001. The route and marker are simulated to demonstrate the planned GPS tracking interface; live GPS hardware is not connected.
+  </p>
+  <div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr));margin-top:18px">
+    <div class="metric">
+      <div class="metric-icon">📦</div>
+      <div class="metric-label">Shipment ID</div>
+      <div class="metric-value">CC-001</div>
+      <div class="metric-foot">Pharmaceutical shipment</div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon">🚚</div>
+      <div class="metric-label">Tracking Status</div>
+      <div class="metric-value" id="gpsStatus" style="font-size:21px">In Transit</div>
+      <div class="metric-foot">Simulated movement</div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon">🌡️</div>
+      <div class="metric-label">Shipment Temperature</div>
+      <div class="metric-value" id="gpsTemp">5.0°C</div>
+      <div class="metric-foot">Latest demo reading</div>
+    </div>
+  </div>
+  <div id="shipmentMap" aria-label="Map showing the simulated shipment route"></div>
+  <div class="alert" id="gpsMessage">
+    📡 Route preview ready. Select “Replay Route” to animate the shipment marker.
+  </div>
+  <div class="custom-row" style="margin-top:12px">
+    <button onclick="showShipmentRoute()">↻ Replay Route</button>
+    <button class="secondary" style="margin-top:0" onclick="focusShipmentMap()">◎ Fit Route on Map</button>
+  </div>
+  <p class="muted" style="margin-top:14px">
+    Map data © OpenStreetMap contributors. An internet connection is required to load map tiles.
+  </p>
+</section>
+<!-- SMART COOLING & HEATING CONTROLLER -->
+<section class="climate-controller" id="climateController">
+
+  <div class="climate-heading">
+    <h2>❄️ Smart Climate Controller</h2>
+    <span class="auto-badge">● AUTOMATIC MODE</span>
+  </div>
+
+  <div class="climate-grid">
+
+    <div class="climate-device" id="coolingCard">
+      <div class="device-icon">🌀</div>
+      <div class="device-name">Cooling Fan</div>
+      <div class="device-status" id="coolingStatus">
+        Waiting for temperature...
+      </div>
+    </div>
+
+    <div class="climate-device" id="heatingCard">
+      <div class="device-icon">♨️</div>
+      <div class="device-name">Heating System</div>
+      <div class="device-status" id="heatingStatus">
+        Waiting for temperature...
+      </div>
+    </div>
+
+  </div>
+
+  <div class="climate-reading">
+    <small>Latest controller temperature</small>
+    <strong id="climateTemperature">-- °C</strong>
+    <small id="climateRange">Configured demo range: 2°C–8°C</small>
+  </div>
+
+  <div class="climate-message" id="climateMessage" role="status"
+       aria-live="polite">
+    Waiting for a valid temperature reading.
+  </div>
+
+</section>
+
+<section class="panel hidden" id="settings">
+  <h2>⚙ Demonstration Settings</h2>
+  <p class="muted">Change the example temperature limits for testing.</p>
+  <div class="custom-row">
+    <label for="minLimit">Minimum °C</label>
+    <input id="minLimit" type="number" value="2" step="0.5">
+    <label for="maxLimit">Maximum °C</label>
+    <input id="maxLimit" type="number" value="8" step="0.5">
+    <button onclick="updateLimits()">Save Limits</button>
+  </div>
+  <p class="muted">These settings are for simulation only. Use the specific product's approved storage requirements in a real system.</p>
+</section>
+
+
+
+<section class="panel hidden" id="emergency">
+  <h2>🆘 Vehicle Accident &amp; Emergency SOS</h2>
+  <p class="muted">DEMO ONLY — this page does not detect real crashes or contact emergency services.</p>
+  <div id="sosStatus" role="status" aria-live="assertive" style="padding:16px;border-radius:12px;border:1px solid #64748b;margin:12px 0;background:#f1f5f9;color:#0f172a;font-weight:700;">
+    🟢 SYSTEM READY — waiting for a simulated sensor signal.
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;">
+    <button type="button" id="simulateCrashButton" onclick="triggerDemoSOS()" style="background:#b91c1c;color:#fff;padding:12px 16px;border:0;border-radius:8px;cursor:pointer;font-weight:700;">🆘 Inject Simulated Crash Signal</button>
+    <button type="button" id="acknowledgeSOSButton" onclick="acknowledgeDemoSOS()" style="padding:12px 16px;border-radius:8px;cursor:pointer;">Acknowledge / Reset Demo</button>
+  </div>
+  <div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+    <div class="metric"><div class="metric-label">Last Event</div><div class="metric-value" id="sosLastEvent" style="font-size:18px;">None</div><div class="metric-foot">Local browser demo record</div></div>
+    <div class="metric"><div class="metric-label">Alert Status</div><div class="metric-value" id="sosAlertState" style="font-size:18px;">READY</div><div class="metric-foot">No real emergency message sent</div></div>
+  </div>
+  <h3>Emergency Event Log</h3>
+  <div id="sosEventLog" aria-live="polite">No simulated events recorded.</div>
+  <p class="muted">For real automatic detection, connect a crash/impact sensor or vehicle telematics device and build a separate, tested hardware-to-server alert path. This demo's button imitates a sensor signal only.</p>
+</section>
+
+<footer>Educational prototype · Simulated data only · Not for real medicine release decisions</footer>
+</main>
+</div>
+
+</div>
+<!-- EXISTING DASHBOARD ENDS HERE -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let minTemp = Number(localStorage.getItem("coldchainMinTemp") ?? 2);
+let maxTemp = Number(localStorage.getItem("coldchainMaxTemp") ?? 8);
+if (!Number.isFinite(minTemp) || !Number.isFinite(maxTemp) || minTemp >= maxTemp) {
+  minTemp = 2; maxTemp = 8;
+}
+function safeReadArray(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch (error) {
+    return [];
+  }
+}
+let readings = safeReadArray("coldchainReadings");
+let alertEvents = safeReadArray("coldchainAlertEvents");
+let excursions = readings.filter(reading => reading.status === "EXCURSION");
+
+function inRange(temp) { return temp >= minTemp && temp <= maxTemp; }
+
+function addReading(temp) {
+  if (!Number.isFinite(temp) || temp < -100 || temp > 100) {
+    alert("Enter a valid temperature between -100°C and 100°C.");
+    return;
+  }
+  const ok = inRange(temp);
+  const now = new Date();
+  const record = {
+    time: now.toLocaleTimeString(),
+    timestamp: now.getTime(),
+    temperature: temp,
+    status: ok ? "IN RANGE" : "EXCURSION"
+  };
+  readings.unshift(record);
+  if (!ok) {
+    excursions.unshift(record);
+    alertEvents.unshift({
+      type: "EXCURSION",
+      time: record.time,
+      timestamp: record.timestamp,
+      temperature: temp,
+      message: "Temperature outside configured limits"
+    });
+    alertEvents = alertEvents.slice(0, 100);
+    localStorage.setItem("coldchainAlertEvents", JSON.stringify(alertEvents));
+  }
+  localStorage.setItem("coldchainReadings", JSON.stringify(readings));
+
+  document.getElementById("temperature").textContent = temp.toFixed(1) + " °C";
+  document.getElementById("gpsTemp").textContent = temp.toFixed(1) + "°C";
+  const status = document.getElementById("status");
+  status.textContent = ok ? "IN RANGE" : "EXCURSION";
+  status.style.color = ok ? "#7bf5cf" : "#ff7898";
+  document.getElementById("total").textContent = readings.length;
+  document.getElementById("excursions").textContent = excursions.length;
+  document.getElementById("updated").textContent = "Last updated: " + record.time;
+  const alertBox = document.getElementById("alert");
+  alertBox.className = ok ? "alert" : "alert danger";
+  alertBox.textContent = ok
+  ? "✓ Temperature is within the safe demo range."
+  : "🚨 CRITICAL ALERT! Temperature: " +
+    temp.toFixed(1) + "°C. OUT OF RANGE!";
+
+if (ok) {
+  stopAlertBeeping();
+} else {
+  startAlertBeeping();
+}
+  document.getElementById("packageIcon").textContent = ok ? "📦" : "⚠️";
+  renderHistory();
+  renderAlerts();
+  updatePrediction();
+  drawChart();
+}
+
+function testCustom() {
+  const input = document.getElementById("customTemp").value;
+  if (input.trim() === "") {
+    alert("Please enter a temperature.");
+    return;
+  }
+  addReading(Number(input));
+}
+
+function renderHistory() {
+  const tbody = document.getElementById("historyRows");
+  tbody.replaceChildren();
+  readings.slice(0, 12).forEach(r => {
+    const tr = document.createElement("tr");
+    const time = document.createElement("td");
+    time.textContent = r.time;
+    const temperature = document.createElement("td");
+    temperature.textContent = Number(r.temperature).toFixed(1) + " °C";
+    const statusCell = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = "badge " + (r.status === "IN RANGE" ? "ok" : "bad");
+    badge.textContent = r.status;
+    statusCell.appendChild(badge);
+    tr.append(time, temperature, statusCell);
+    tbody.appendChild(tr);
+  });
+}
+
+function renderAlerts() {
+  const box = document.getElementById("alertList");
+  box.replaceChildren();
+  if (!alertEvents.length) {
+    box.textContent = "No alert events recorded yet. Test a high or low temperature to try an alert.";
+    document.getElementById("predictionEvents").textContent = excursions.length;
+    return;
+  }
+  alertEvents.slice(0, 50).forEach(event => {
+    const item = document.createElement("div");
+    item.className = event.type === "EXCURSION" ? "alert danger" : "alert";
+    item.textContent = event.time + " — " + Number(event.temperature).toFixed(1) +
+      "°C — " + event.message;
+    box.appendChild(item);
+  });
+  document.getElementById("predictionEvents").textContent = excursions.length;
+}
+
+function updatePrediction() {
+  const direction = document.getElementById("trendDirection");
+  const detail = document.getElementById("trendDetail");
+  const forecast = document.getElementById("forecastTemp");
+  document.getElementById("predictionEvents").textContent = excursions.length;
+  if (readings.length < 2) {
+    direction.textContent = "Waiting";
+    detail.textContent = "Record at least two readings";
+    forecast.textContent = "-- °C";
+    return;
+  }
+  const latest = Number(readings[0].temperature);
+  const previous = Number(readings[1].temperature);
+  const change = latest - previous;
+  const estimate = latest + change;
+  direction.textContent = Math.abs(change) < 0.05 ? "Stable" : change > 0 ? "Rising" : "Falling";
+  detail.textContent = "Latest change: " + (change > 0 ? "+" : "") + change.toFixed(1) + "°C";
+  forecast.textContent = estimate.toFixed(1) + " °C";
+}
+
+function drawChart() {
+  const canvas = document.getElementById("chart");
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(300, Math.round(rect.width * dpr));
+  canvas.height = 240 * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = canvas.width / dpr, h = 240;
+  const left = 37, right = w - 12, top = 15, bottom = h - 30;
+  const minY = Math.min(-2, minTemp - 2);
+  const maxY = Math.max(12, maxTemp + 2);
+  const y = t => bottom - (t - minY) / (maxY - minY) * (bottom - top);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#092c3b";
+  ctx.fillRect(left, y(maxTemp), right-left, y(minTemp)-y(maxTemp));
+  ctx.font = "11px Segoe UI";
+  ctx.textAlign = "right";
+  for (let t = Math.ceil(minY/2)*2; t <= maxY; t += 2) {
+    ctx.strokeStyle = "#1b3554";
+    ctx.beginPath(); ctx.moveTo(left, y(t)); ctx.lineTo(right, y(t)); ctx.stroke();
+    ctx.fillStyle = "#9bb4d5"; ctx.fillText(t + "°", left - 7, y(t) + 4);
+  }
+  const points = readings.slice(0, 25).reverse();
+  if (!points.length) {
+    ctx.textAlign = "center"; ctx.fillStyle = "#9bb4d5";
+    ctx.fillText("No readings yet", (left + right) / 2, (top + bottom) / 2);
+    return;
+  }
+  const x = i => points.length === 1 ? (left + right) / 2 : left + i * (right - left) / (points.length - 1);
+  ctx.beginPath();
+  points.forEach((r, i) => i === 0 ? ctx.moveTo(x(i), y(r.temperature)) : ctx.lineTo(x(i), y(r.temperature)));
+  ctx.strokeStyle = "#26c7ff"; ctx.lineWidth = 2.5;
+  ctx.shadowColor = "#168bff"; ctx.shadowBlur = 8; ctx.stroke(); ctx.shadowBlur = 0;
+  points.forEach((r, i) => {
+    ctx.beginPath(); ctx.arc(x(i), y(r.temperature), 4, 0, Math.PI * 2);
+    ctx.fillStyle = inRange(r.temperature) ? "#20e0ad" : "#ff5577"; ctx.fill();
+  });
+  ctx.textAlign = "left"; ctx.fillStyle = "#9bb4d5"; ctx.fillText("Older", left, h-8);
+  ctx.textAlign = "right"; ctx.fillText("Latest", right, h-8);
+}
+
+function downloadCSV() {
+  const rows = [["Time", "Temperature C", "Status"]];
+  readings.forEach(r => rows.push([r.time, r.temperature, r.status]));
+  const csv = rows.map(row => row.map(value =>
+    '"' + String(value).replace(/"/g, '""') + '"'
+  ).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], {type: "text/csv;charset=utf-8;"}));
+  const a = document.createElement("a");
+  a.href = url; a.download = "coldchain-history.csv"; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function resetDemo() {
+  readings = [];
+  excursions = [];
+  alertEvents = [];
+  localStorage.removeItem("coldchainReadings");
+  localStorage.removeItem("coldchainAlertEvents");
+  document.getElementById("temperature").textContent = "-- °C";
+  document.getElementById("gpsTemp").textContent = "-- °C";
+  document.getElementById("status").textContent = "NO DATA";
+  document.getElementById("status").style.color = "#9bb4d5";
+  document.getElementById("total").textContent = "0";
+  document.getElementById("excursions").textContent = "0";
+  document.getElementById("updated").textContent = "Waiting for reading";
+  document.getElementById("alert").className = "alert";
+  document.getElementById("alert").textContent = "Demo reset. Select a temperature to begin.";
+  document.getElementById("packageIcon").textContent = "📦";
+  document.getElementById("predictionEvents").textContent = "0";
+  updatePrediction(); renderHistory(); renderAlerts(); drawChart();
+}
+
+function updateLimits() {
+  const min = Number(document.getElementById("minLimit").value);
+  const max = Number(document.getElementById("maxLimit").value);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min >= max) {
+    alert("Maximum temperature must be greater than minimum.");
+    return;
+  }
+  minTemp = min; maxTemp = max;
+  localStorage.setItem("coldchainMinTemp", String(minTemp));
+  localStorage.setItem("coldchainMaxTemp", String(maxTemp));
+  // Refresh the controller using the new settings.
+document.getElementById("climateRange").textContent =
+  "Configured demo range: " + minTemp + "°C–" + maxTemp + "°C";
+
+if (lastClimateTemperature !== null) {
+  updateClimateController(lastClimateTemperature);
+}
+  document.querySelectorAll(".safe-box strong, .safe-range strong")
+    .forEach(el => el.textContent = minTemp + "°C – " + maxTemp + "°C");
+    document.getElementById("minRangeLabel").textContent = minTemp + "°C";
+document.getElementById("maxRangeLabel").textContent = maxTemp + "°C";
+  excursions = [];
+  readings.forEach(r => {
+    r.status = inRange(r.temperature) ? "IN RANGE" : "EXCURSION";
+    if (r.status === "EXCURSION") excursions.push(r);
+  });
+  document.getElementById("excursions").textContent = excursions.length;
+  document.getElementById("predictionEvents").textContent = excursions.length;
+  const latest = readings[0];
+  if (latest) {
+    const status = document.getElementById("status");
+    status.textContent = latest.status;
+    status.style.color = inRange(latest.temperature) ? "#7bf5cf" : "#ff7898";
+    document.getElementById("alert").className = inRange(latest.temperature) ? "alert" : "alert danger";
+    document.getElementById("alert").textContent = inRange(latest.temperature)
+      ? "✓ Latest reading is within the updated range."
+      : "⚠ WARNING: Latest reading is outside the updated range.";
+    document.getElementById("packageIcon").textContent = inRange(latest.temperature) ? "📦" : "⚠️";
+  }
+  localStorage.setItem("coldchainReadings", JSON.stringify(readings));
+  renderHistory(); renderAlerts(); updatePrediction(); drawChart();
+}
+
+function updateClock() {
+  document.getElementById("clock").textContent = new Date().toLocaleString();
+}
+
+/* Simulated shipment map: no live GPS coordinates are received. */
+let shipmentMap = null;
+let shipmentMarker = null;
+let routeLine = null;
+let routeTimer = null;
+let routeIndex = 0;
+
+const shipmentRoute = [
+  [13.0827, 80.2707], // Chennai - illustrative start
+  [13.0358, 80.2134], // Guindy area - illustrative waypoint
+  [12.9784, 80.2210], // Velachery area - illustrative waypoint
+  [12.9249, 80.1000]  // Illustrative destination, not a verified road route
+];
+
+function initializeShipmentMap() {
+  const mapElement = document.getElementById("shipmentMap");
+  if (!mapElement || shipmentMap) return;
+  if (typeof L === "undefined") {
+    document.getElementById("gpsMessage").className = "alert danger";
+    document.getElementById("gpsMessage").textContent =
+      "Map library could not load. Check your internet connection and refresh the page.";
+    return;
+  }
+
+  shipmentMap = L.map("shipmentMap").setView(shipmentRoute[0], 11);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(shipmentMap);
+
+  L.marker(shipmentRoute[0]).addTo(shipmentMap)
+    .bindPopup("📦 Origin: Chennai");
+  L.marker(shipmentRoute[shipmentRoute.length - 1]).addTo(shipmentMap)
+    .bindPopup("🏁 Illustrative destination");
+
+  routeLine = L.polyline(shipmentRoute, {
+    color: "#23d9ff", weight: 4, dashArray: "8, 8"
+  }).addTo(shipmentMap);
+
+  shipmentMarker = L.marker(shipmentRoute[0]).addTo(shipmentMap)
+    .bindPopup("CC-001 — Simulated shipment location");
+  shipmentMap.fitBounds(routeLine.getBounds(), {padding: [25, 25]});
+  setTimeout(() => shipmentMap && shipmentMap.invalidateSize(), 250);
+}
+
+function focusShipmentMap() {
+  if (!shipmentMap) initializeShipmentMap();
+  if (shipmentMap && routeLine) shipmentMap.fitBounds(routeLine.getBounds(), {padding: [25, 25]});
+}
+
+function showShipmentRoute() {
+  if (!shipmentMap) initializeShipmentMap();
+  if (!shipmentMap || !shipmentMarker) return;
+  clearInterval(routeTimer);
+  routeIndex = 0;
+  shipmentMarker.setLatLng(shipmentRoute[0]);
+  shipmentMarker.setPopupContent("CC-001 — Simulated shipment location");
+  document.getElementById("gpsStatus").textContent = "In Transit";
+  document.getElementById("gpsMessage").className = "alert";
+  document.getElementById("gpsMessage").textContent = "▶ Simulated route replay started.";
+  shipmentMap.panTo(shipmentRoute[0]);
+
+  routeTimer = setInterval(() => {
+    routeIndex++;
+    if (routeIndex >= shipmentRoute.length) {
+      clearInterval(routeTimer);
+      document.getElementById("gpsStatus").textContent = "Route End";
+      document.getElementById("gpsMessage").textContent =
+        "✓ Demo route completed. This was simulated movement, not live GPS.";
+      shipmentMarker.bindPopup("CC-001 — Demo route completed").openPopup();
+      return;
+    }
+    shipmentMarker.setLatLng(shipmentRoute[routeIndex]);
+    shipmentMarker.setPopupContent("CC-001 — Simulated route point " + (routeIndex + 1));
+    shipmentMap.panTo(shipmentRoute[routeIndex]);
+  }, 1200);
+}
+
+
+// ===== EMERGENCY SOS DEMO (SIMULATED SENSOR INPUT ONLY) =====
+let demoSOSActive = false;
+let demoSOSEvents = [];
+try {
+  const savedSOSEvents = JSON.parse(localStorage.getItem("coldchainDemoSOSEvents") || "[]");
+  if (Array.isArray(savedSOSEvents)) demoSOSEvents = savedSOSEvents;
+} catch (error) {
+  demoSOSEvents = [];
+}
+
+function renderDemoSOSEvents() {
+  const log = document.getElementById("sosEventLog");
+  const last = document.getElementById("sosLastEvent");
+  if (!log || !last) return;
+  if (!demoSOSEvents.length) {
+    log.textContent = "No simulated events recorded.";
+    last.textContent = "None";
+    return;
+  }
+  last.textContent = demoSOSEvents[0].time;
+  log.replaceChildren();
+  demoSOSEvents.slice(0, 10).forEach(event => {
+    const row = document.createElement("p");
+    row.textContent = "🆘 SIMULATED SOS — " + event.time + " — " + event.message;
+    log.appendChild(row);
+  });
+}
+
+function triggerDemoSOS() {
+  // This button imitates a connected sensor signal; it is not real crash detection.
+  demoSOSActive = true;
+  const now = new Date();
+  const event = {
+    time: now.toLocaleString(),
+    timestamp: now.getTime(),
+    message: "Simulated vehicle impact signal received. Dashboard SOS activated."
+  };
+  demoSOSEvents.unshift(event);
+  demoSOSEvents = demoSOSEvents.slice(0, 50);
+  try { localStorage.setItem("coldchainDemoSOSEvents", JSON.stringify(demoSOSEvents)); } catch (error) {}
+
+  const status = document.getElementById("sosStatus");
+  status.textContent = "🆘 SIMULATED SOS ACTIVE — crash signal received at " + event.time + ". No emergency services were contacted.";
+  status.style.background = "#7f1d1d";
+  status.style.color = "#ffffff";
+  status.style.borderColor = "#ef4444";
+  document.getElementById("sosAlertState").textContent = "DEMO SOS ACTIVE";
+  document.getElementById("simulateCrashButton").disabled = true;
+  document.getElementById("simulateCrashButton").textContent = "SOS Active — Acknowledge to Reset";
+  renderDemoSOSEvents();
+}
+
+function acknowledgeDemoSOS() {
+  demoSOSActive = false;
+  const status = document.getElementById("sosStatus");
+  status.textContent = "🟢 DEMO RESET — waiting for a simulated sensor signal. No real emergency was reported.";
+  status.style.background = "#f1f5f9";
+  status.style.color = "#0f172a";
+  status.style.borderColor = "#64748b";
+  document.getElementById("sosAlertState").textContent = "READY";
+  const button = document.getElementById("simulateCrashButton");
+  button.disabled = false;
+  button.textContent = "🆘 Inject Simulated Crash Signal";
+}
+
+renderDemoSOSEvents();
+// ===== END EMERGENCY SOS DEMO =====
+
+const viewIds = ["dashboard", "simulator", "history", "alerts", "prediction", "tracking", "emergency", "climateController", "settings"];
+document.querySelectorAll(".nav-item").forEach(item => {
+  item.addEventListener("click", () => {
+    document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+    item.classList.add("active");
+    const view = item.dataset.view;
+    viewIds.forEach(id => {
+      const show = id === view || (view === "dashboard" && ["simulator", "history"].includes(id));
+      document.getElementById(id).classList.toggle("hidden", !show);
+    });
+    if (view === "history") setTimeout(drawChart, 50);
+    if (view === "tracking") {
+      setTimeout(() => {
+        initializeShipmentMap();
+        if (shipmentMap) shipmentMap.invalidateSize();
+      }, 100);
+    }
+  });
+});
+
+window.addEventListener("resize", () => {
+  drawChart();
+  if (shipmentMap) shipmentMap.invalidateSize();
+});
+
+function restoreDashboard() {
+  updateClock();
+  document.getElementById("minLimit").value = minTemp;
+  document.getElementById("maxLimit").value = maxTemp;
+  document.querySelectorAll(".safe-box strong, .safe-range strong")
+    .forEach(el => el.textContent = minTemp + "°C – " + maxTemp + "°C");
+  excursions = [];
+  readings.forEach(r => {
+    r.status = inRange(Number(r.temperature)) ? "IN RANGE" : "EXCURSION";
+    if (r.status === "EXCURSION") excursions.push(r);
+  });
+  if (readings.length > 0) {
+    const latest = readings[0];
+    document.getElementById("temperature").textContent = Number(latest.temperature).toFixed(1) + " °C";
+    document.getElementById("gpsTemp").textContent = Number(latest.temperature).toFixed(1) + "°C";
+    const status = document.getElementById("status");
+    status.textContent = latest.status;
+    status.style.color = latest.status === "IN RANGE" ? "#7bf5cf" : "#ff7898";
+    document.getElementById("total").textContent = readings.length;
+    document.getElementById("excursions").textContent = excursions.length;
+    document.getElementById("updated").textContent = "Last recorded: " + latest.time;
+    document.getElementById("packageIcon").textContent = latest.status === "IN RANGE" ? "📦" : "⚠️";
+    document.getElementById("alert").textContent = latest.status === "IN RANGE"
+      ? "✓ Latest saved reading is within the example range."
+      : "⚠ Latest saved reading shows an excursion.";
+    document.getElementById("alert").className = latest.status === "IN RANGE" ? "alert" : "alert danger";
+  } else {
+    document.getElementById("temperature").textContent = "-- °C";
+    document.getElementById("gpsTemp").textContent = "-- °C";
+    document.getElementById("status").textContent = "NO DATA";
+    document.getElementById("total").textContent = "0";
+    document.getElementById("excursions").textContent = "0";
+  }
+  renderHistory(); renderAlerts(); updatePrediction(); drawChart();
+}
+
+restoreDashboard();
+setInterval(updateClock, 1000);
+  // ===== ThingSpeak Live Temperature Connection =====
+const THINGSPEAK_CHANNEL_ID = "3533841";
+const THINGSPEAK_READ_API_KEY = "AU4NEJJCA6QGCAVK";
+async function fetchThingSpeakTemperature() {
+  try {
+    const url =
+      `https://api.thingspeak.com/channels/${THINGSPEAK_CHANNEL_ID}/feeds/last.json?api_key=${THINGSPEAK_READ_API_KEY}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("HTTP error: " + response.status);
+    }
+    const data = await response.json();
+    if (data.field1 === null || data.field1 === undefined) {
+      throw new Error("No temperature data received");
+    }
+    const temperature = Number(data.field1);
+    if (!Number.isFinite(temperature)) {
+      throw new Error("Invalid temperature received");
+    }
+    updateClimateController(temperature);
+    const timestamp = data.created_at
+      ? new Date(data.created_at).toLocaleString()
+      : new Date().toLocaleString();
+    const latestReading = {
+      temperature: temperature,
+      time: timestamp,
+      status: inRange(temperature) ? "IN RANGE" : "EXCURSION"
+    };
+    // Put the newest live reading first.
+    readings = [
+      latestReading,
+      ...readings.filter(r => r.source !== "ThingSpeak")
+    ].slice(0, 100);
+    readings[0].source = "ThingSpeak";
+    // Update the dashboard with the latest live reading.
+ restoreDashboard();
+
+ document.getElementById("temperature").textContent =
+   temperature.toFixed(1) + " °C";
+
+ document.getElementById("gpsTemp").textContent =
+   temperature.toFixed(1) + "°C";
+
+ document.getElementById("updated").textContent =
+   "Live ThingSpeak reading: " + timestamp;
+    console.log("ThingSpeak temperature:", temperature, "°C");
+  } catch (error) {
+    console.error("ThingSpeak connection failed:", error);
+    document.getElementById("updated").textContent =
+      "ThingSpeak connection failed. Check the Read API Key and internet.";
+  }
+}
+// Fetch immediately, then refresh every 20 seconds.
+fetchThingSpeakTemperature();
+setInterval(fetchThingSpeakTemperature, 5000);
+  let alertSoundEnabled = false;
+let alertBeepTimer = null;
+let alertAudioContext = null;
+
+function enableAlertSound() {
+  const AudioContextClass =
+    window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContextClass) {
+    alert("Audio is not supported in this browser.");
+    return;
+  }
+
+  if (!alertAudioContext) {
+    alertAudioContext = new AudioContextClass();
+  }
+
+  alertSoundEnabled = true;
+
+  if (alertAudioContext.state === "suspended") {
+    alertAudioContext.resume();
+  }
+
+  if (document.getElementById("alert").classList.contains("danger")) {
+    startAlertBeeping();
+  } else {
+    // Test the sound when enabling it.
+    playAlertBeep();
+  }
+}
+
+function playAlertBeep() {
+  if (!alertSoundEnabled || !alertAudioContext) return;
+
+  const oscillator = alertAudioContext.createOscillator();
+  const gain = alertAudioContext.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.value = 880;
+  gain.gain.value = 0.12;
+
+  oscillator.connect(gain);
+  gain.connect(alertAudioContext.destination);
+
+  oscillator.start();
+  oscillator.stop(alertAudioContext.currentTime + 0.25);
+}
+
+function startAlertBeeping() {
+  if (!alertSoundEnabled || alertBeepTimer) return;
+
+  playAlertBeep();
+  alertBeepTimer = setInterval(playAlertBeep, 1000);
+}
+
+function stopAlertBeeping() {
+  clearInterval(alertBeepTimer);
+  alertBeepTimer = null;
+}
+
+function silenceAlertSound() {
+  alertSoundEnabled = false;
+  stopAlertBeeping();
+}
+/* SMART AUTOMATIC COOLING & HEATING CONTROLLER */
+
+// Demo thresholds only. Set these to the limits specified
+// for the particular biologic being transported.
+// Read the current limits from the Settings page.
+function getClimateMin() {
+  return minTemp;
+}
+
+function getClimateMax() {
+  return maxTemp;
+}
+
+// Hysteresis thresholds are calculated from the saved limits.
+
+let coolingActive = false;
+let heatingActive = false;
+let lastClimateTemperature = null;
+
+function updateClimateController(temperature) {
+  const temp = Number(temperature);
+
+  if (!Number.isFinite(temp)) {
+    setClimateMessage(
+      "No valid temperature reading. Controller is waiting.",
+      "warning"
+    );
+    return;
+  }
+
+  lastClimateTemperature = temp;
+
+  // Read the latest limits saved in Settings.
+  const min = getClimateMin();
+  const max = getClimateMax();
+
+  // Calculate the switch-off thresholds.
+  const fanOffAt = max - 0.5;
+  const heaterOffAt = min + 0.5;
+
+  // Automatic control with hysteresis.
+  if (temp > max) {
+    coolingActive = true;
+    heatingActive = false;
+  } else if (temp < min) {
+    heatingActive = true;
+    coolingActive = false;
+  } else {
+    if (coolingActive && temp <= fanOffAt) {
+      coolingActive = false;
+    }
+
+    if (heatingActive && temp >= heaterOffAt) {
+      heatingActive = false;
+    }
+  }
+
+  // Update the displayed temperature and configured range.
+  document.getElementById("climateTemperature").textContent =
+    temp.toFixed(2) + " °C";
+
+  document.getElementById("climateRange").textContent =
+    "Configured demo range: " + min + "°C–" + max + "°C";
+
+  // Update cooling fan display.
+  const coolingCard = document.getElementById("coolingCard");
+  const coolingStatus = document.getElementById("coolingStatus");
+
+  coolingCard.classList.toggle("device-active", coolingActive);
+  coolingStatus.classList.toggle("active", coolingActive);
+
+  coolingStatus.textContent = coolingActive
+    ? "● FAN ON — Cooling requested"
+    : "○ FAN OFF";
+
+  // Update heating system display.
+  const heatingCard = document.getElementById("heatingCard");
+  const heatingStatus = document.getElementById("heatingStatus");
+
+  heatingCard.classList.toggle("device-active", heatingActive);
+  heatingStatus.classList.toggle("active", heatingActive);
+
+  heatingStatus.textContent = heatingActive
+    ? "● HEATING ON — Heating requested"
+    : "○ HEATING OFF";
+
+  // Update the overall system message.
+  if (temp > max) {
+    setClimateMessage(
+      "HIGH TEMPERATURE! Cooling fan activated in simulation.",
+      "danger"
+    );
+  } else if (temp < min) {
+    setClimateMessage(
+      "LOW TEMPERATURE! Heating activated in simulation.",
+      "danger"
+    );
+  } else if (coolingActive) {
+    setClimateMessage(
+      "Temperature is recovering. Cooling remains active.",
+      "warning"
+    );
+  } else if (heatingActive) {
+    setClimateMessage(
+      "Temperature is recovering. Heating remains active.",
+      "warning"
+    );
+  } else {
+    setClimateMessage(
+      "TEMPERATURE NORMAL — No cooling or heating required.",
+      "normal"
+    );
+  }
+}
+
+function setClimateMessage(message, state) {
+  const box = document.getElementById("climateMessage");
+  if (!box) return;
+
+  box.textContent = message;
+  box.classList.remove("warning", "danger");
+
+  if (state === "warning") {
+    box.classList.add("warning");
+  } else if (state === "danger") {
+    box.classList.add("danger");
+  }
+}
+</script>
+
+<script>
+// ===== SMART COLD-CHAIN DEMO LOGIN =====
+
+(() => {
+  const DEMO_EMAIL = "demo@example.com";
+  const DEMO_PASSWORD = "ColdChain123!";
+
+  const loginScreen = document.getElementById("loginScreen");
+  const dashboard = document.getElementById("dashboardApp");
+  const loginForm = document.getElementById("loginForm");
+  const emailInput = document.getElementById("loginEmail");
+  const passwordInput = document.getElementById("loginPassword");
+  const errorBox = document.getElementById("loginError");
+  const toggleButton = document.getElementById("toggleLoginPassword");
+
+  function showDashboard() {
+    loginScreen.hidden = true;
+    dashboard.hidden = false;
+
+    // Redraw the existing chart after the dashboard appears.
+    if (typeof drawChart === "function") {
+      requestAnimationFrame(() => {
+        drawChart();
+
+        if (typeof shipmentMap !== "undefined" && shipmentMap) {
+          shipmentMap.invalidateSize();
+        }
+      });
+    }
+  }
+
+  function showLogin() {
+    dashboard.hidden = true;
+    loginScreen.hidden = false;
+    passwordInput.value = "";
+  }
+
+  // Show/hide password.
+  toggleButton.addEventListener("click", () => {
+    const shouldShow = passwordInput.type === "password";
+
+    passwordInput.type = shouldShow ? "text" : "password";
+    toggleButton.textContent = shouldShow ? "Hide" : "Show";
+  });
+
+  // Validate the demo credentials.
+  loginForm.addEventListener("submit", event => {
+    event.preventDefault();
+    errorBox.textContent = "";
+
+    const email = emailInput.value.trim().toLowerCase();
+    const password = passwordInput.value;
+
+    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+      sessionStorage.setItem("coldchainDemoLogin", "true");
+      passwordInput.value = "";
+      showDashboard();
+    } else {
+      errorBox.textContent =
+        "Incorrect email or password. Please try again.";
+      passwordInput.value = "";
+      passwordInput.focus();
+    }
+  });
+
+  // Add logout to the existing header without replacing it.
+  const headerRight = document.querySelector(".header-right");
+  const logoutButton = document.createElement("button");
+
+  logoutButton.id = "logoutButton";
+  logoutButton.type = "button";
+  logoutButton.textContent = "Log Out";
+  logoutButton.addEventListener("click", () => {
+    sessionStorage.removeItem("coldchainDemoLogin");
+    showLogin();
+    errorBox.textContent = "";
+    emailInput.focus();
+  });
+
+  if (headerRight) {
+    headerRight.appendChild(logoutButton);
+  }
+
+  // Restore the demo login for this browser tab.
+  if (sessionStorage.getItem("coldchainDemoLogin") === "true") {
+    showDashboard();
+  } else {
+    showLogin();
+  }
+})();
+</script>
+</body>
+</html>
+
