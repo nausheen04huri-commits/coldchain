@@ -244,6 +244,24 @@ canvas { display: block; width: 100%; height: 240px; }
 #shipmentMap { height: 390px; width: 100%; border-radius: 14px; border: 1px solid #1b416c; z-index: 1; background: #0b2040; }
 .tracking-note { line-height: 1.6; }
 .hidden { display: none !important; }
+/* EMERGENCY SOS */
+#emergencySOS {
+  border: 2px solid #ff5577;
+}
+
+#sosStatus.sos-active {
+  background: #b00020;
+  color: white;
+  border: 2px solid white;
+  font-size: 16px;
+  font-weight: bold;
+  animation: alertBlink 0.6s infinite;
+}
+
+.nav-item[data-view="emergencySOS"] {
+  border: 1px solid #ff5577;
+  color: #ff8da3;
+}
 footer { text-align: center; color: #7793b8; font-size: 11px; padding: 10px 0 24px; }
 @keyframes appear {
   from { opacity: 0; transform: translateY(12px); }
@@ -606,6 +624,10 @@ footer { text-align: center; color: #7793b8; font-size: 11px; padding: 10px 0 24
   <div class="nav-item" data-view="tracking"><span aria-hidden="true">⌖</span><span>Shipment Tracking</span></div>
   <div class="nav-item" data-view="climateController"><span aria-hidden="true">❄</span><span>Cooling &amp; Heating</span></div>
   <div class="nav-item" data-view="settings"><span aria-hidden="true">⚙</span><span>Settings</span></div>
+  <div class="nav-item" data-view="emergencySOS">
+  <span aria-hidden="true">🆘</span>
+  <span>Emergency SOS</span>
+</div>
   <div class="safe-box">
     ❄ &nbsp; Safe Temperature
     <strong>2°C – 8°C</strong>
@@ -822,8 +844,37 @@ footer { text-align: center; color: #7793b8; font-size: 11px; padding: 10px 0 24
   <p class="muted">These settings are for simulation only. Use the specific product's approved storage requirements in a real system.</p>
 </section>
 
-
 <footer>Educational prototype · Simulated data only · Not for real medicine release decisions</footer>
+<!-- EMERGENCY SOS PANEL -->
+<section class="panel hidden" id="emergencySOS">
+  <div class="panel-heading">
+    <h2>🆘 Emergency SOS System</h2>
+    <span class="badge bad">SAFETY ALERT</span>
+  </div>
+
+  <p class="muted">
+    Accident detection and emergency notification for shipment CC-001.
+  </p>
+
+  <div class="alert" id="sosStatus">
+    ✓ No accident reported. System is on standby.
+  </div>
+
+  <div class="custom-row" style="margin-top:15px">
+    <button class="high" onclick="triggerSOS()">
+      🚨 Simulate Accident / Send SOS
+    </button>
+
+    <button class="secondary" onclick="cancelSOS()">
+      ✓ Cancel Alert
+    </button>
+  </div>
+
+  <p class="muted" style="margin-top:15px">
+    Demo mode: this button simulates accident detection.
+    Real automatic detection requires a crash sensor.
+  </p>
+</section>
 </main>
 </div>
 
@@ -1216,8 +1267,44 @@ function showShipmentRoute() {
     shipmentMap.panTo(shipmentRoute[routeIndex]);
   }, 1200);
 }
+// ===== EMERGENCY SOS SYSTEM =====
 
-const viewIds = ["dashboard", "simulator", "history", "alerts", "prediction", "tracking", "climateController", "settings"];
+function triggerSOS() {
+  const status = document.getElementById("sosStatus");
+
+  status.className = "alert sos-active";
+  status.textContent =
+    "🚨 EMERGENCY! Accident reported for shipment CC-001. Immediate assistance required!";
+
+  if ("vibrate" in navigator) {
+    navigator.vibrate([500, 200, 500, 200, 500]);
+  }
+
+  if ("Notification" in window &&
+      Notification.permission === "granted") {
+    new Notification("EMERGENCY SOS ALERT", {
+      body: "Possible accident involving shipment CC-001."
+    });
+  }
+
+  alert(
+    "EMERGENCY SOS!\n" +
+    "Accident alert activated for shipment CC-001."
+  );
+}
+
+function cancelSOS() {
+  const status = document.getElementById("sosStatus");
+
+  status.className = "alert";
+  status.textContent =
+    "✓ SOS alert cancelled. System is on standby.";
+
+  if ("vibrate" in navigator) {
+    navigator.vibrate(0);
+  }
+}
+const viewIds = ["dashboard", "simulator", "history", "alerts", "prediction", "tracking", "climateController", "settings",  "emergencySOS"];
 document.querySelectorAll(".nav-item").forEach(item => {
   item.addEventListener("click", () => {
     document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
