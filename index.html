@@ -899,7 +899,7 @@ if (ok) {
 } else {
   startAlertBeeping();
 }
-  document.getElementById("packageIcon").textContent = ok ? "📦" : "⚠️";
+  document.getElementById("packageIcon").textContent = ok ? "📦" : "";
   renderHistory();
   renderAlerts();
   updatePrediction();
@@ -1085,7 +1085,7 @@ document.getElementById("maxRangeLabel").textContent = maxTemp + "°C";
     document.getElementById("alert").textContent = inRange(latest.temperature)
       ? "✓ Latest reading is within the updated range."
       : "⚠ WARNING: Latest reading is outside the updated range.";
-    document.getElementById("packageIcon").textContent = inRange(latest.temperature) ? "📦" : "⚠️";
+    document.getElementById("packageIcon").textContent = inRange(latest.temperature) ? "📦" : "";
   }
   localStorage.setItem("coldchainReadings", JSON.stringify(readings));
   renderHistory(); renderAlerts(); updatePrediction(); drawChart();
@@ -1272,7 +1272,7 @@ function restoreDashboard() {
     document.getElementById("total").textContent = readings.length;
     document.getElementById("excursions").textContent = excursions.length;
     document.getElementById("updated").textContent = "Last recorded: " + latest.time;
-    document.getElementById("packageIcon").textContent = latest.status === "IN RANGE" ? "📦" : "⚠️";
+    document.getElementById("packageIcon").textContent = latest.status === "IN RANGE" ? "📦" : "";
     document.getElementById("alert").textContent = latest.status === "IN RANGE"
       ? "✓ Latest saved reading is within the example range."
       : "⚠ Latest saved reading shows an excursion.";
