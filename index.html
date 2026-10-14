@@ -604,7 +604,6 @@ footer { text-align: center; color: #7793b8; font-size: 11px; padding: 10px 0 24
   <div class="nav-item" data-view="alerts"><span aria-hidden="true">♧</span><span>Alerts</span></div>
   <div class="nav-item" data-view="prediction"><span aria-hidden="true">✧</span><span>Prediction</span></div>
   <div class="nav-item" data-view="tracking"><span aria-hidden="true">⌖</span><span>Shipment Tracking</span></div>
-  <div class="nav-item" data-view="emergency"><span aria-hidden="true">🆘</span><span>Emergency SOS</span></div>
   <div class="nav-item" data-view="climateController"><span aria-hidden="true">❄</span><span>Cooling &amp; Heating</span></div>
   <div class="nav-item" data-view="settings"><span aria-hidden="true">⚙</span><span>Settings</span></div>
   <div class="safe-box">
@@ -680,7 +679,6 @@ footer { text-align: center; color: #7793b8; font-size: 11px; padding: 10px 0 24
     </div>
     <div class="package-art">
       <div class="package-circle" id="packageIcon">📦</div>
-</div>
       <div class="safe-range">
         SAFE RANGE
         <strong>2°C – 8°C</strong>
@@ -732,7 +730,7 @@ footer { text-align: center; color: #7793b8; font-size: 11px; padding: 10px 0 24
 
 <section class="panel hidden" id="tracking">
   <div class="panel-heading">
-    <h2>📍 Shipment GPS Tracking</h2>
+    <h2>⌖ Shipment GPS Tracking</h2>
     <span class="badge ok">DEMO MODE</span>
   </div>
   <p class="muted tracking-note">
@@ -824,26 +822,6 @@ footer { text-align: center; color: #7793b8; font-size: 11px; padding: 10px 0 24
   <p class="muted">These settings are for simulation only. Use the specific product's approved storage requirements in a real system.</p>
 </section>
 
-
-
-<section class="panel hidden" id="emergency">
-  <h2>🆘 Vehicle Accident &amp; Emergency SOS</h2>
-  <p class="muted">DEMO ONLY — this page does not detect real crashes or contact emergency services.</p>
-  <div id="sosStatus" role="status" aria-live="assertive" style="padding:16px;border-radius:12px;border:1px solid #64748b;margin:12px 0;background:#f1f5f9;color:#0f172a;font-weight:700;">
-    🟢 SYSTEM READY — waiting for a simulated sensor signal.
-  </div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;">
-    <button type="button" id="simulateCrashButton" onclick="triggerDemoSOS()" style="background:#b91c1c;color:#fff;padding:12px 16px;border:0;border-radius:8px;cursor:pointer;font-weight:700;">🆘 Inject Simulated Crash Signal</button>
-    <button type="button" id="acknowledgeSOSButton" onclick="acknowledgeDemoSOS()" style="padding:12px 16px;border-radius:8px;cursor:pointer;">Acknowledge / Reset Demo</button>
-  </div>
-  <div class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
-    <div class="metric"><div class="metric-label">Last Event</div><div class="metric-value" id="sosLastEvent" style="font-size:18px;">None</div><div class="metric-foot">Local browser demo record</div></div>
-    <div class="metric"><div class="metric-label">Alert Status</div><div class="metric-value" id="sosAlertState" style="font-size:18px;">READY</div><div class="metric-foot">No real emergency message sent</div></div>
-  </div>
-  <h3>Emergency Event Log</h3>
-  <div id="sosEventLog" aria-live="polite">No simulated events recorded.</div>
-  <p class="muted">For real automatic detection, connect a crash/impact sensor or vehicle telematics device and build a separate, tested hardware-to-server alert path. This demo's button imitates a sensor signal only.</p>
-</section>
 
 <footer>Educational prototype · Simulated data only · Not for real medicine release decisions</footer>
 </main>
@@ -1133,35 +1111,79 @@ const shipmentRoute = [
 
 function initializeShipmentMap() {
   const mapElement = document.getElementById("shipmentMap");
-  if (!mapElement || shipmentMap) return;
+  const gpsMessage = document.getElementById("gpsMessage");
+
+  if (!mapElement) return;
+
   if (typeof L === "undefined") {
-    document.getElementById("gpsMessage").className = "alert danger";
-    document.getElementById("gpsMessage").textContent =
-      "Map library could not load. Check your internet connection and refresh the page.";
+    if (gpsMessage) {
+      gpsMessage.className = "alert danger";
+      gpsMessage.textContent =
+        "Map library did not load. Check your internet and refresh.";
+    }
     return;
   }
 
-  shipmentMap = L.map("shipmentMap").setView(shipmentRoute[0], 11);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  }).addTo(shipmentMap);
+  // Create the map only once.
+  if (!shipmentMap) {
+    try {
+      shipmentMap = L.map(mapElement).setView(shipmentRoute[0], 11);
 
-  L.marker(shipmentRoute[0]).addTo(shipmentMap)
-    .bindPopup("📦 Origin: Chennai");
-  L.marker(shipmentRoute[shipmentRoute.length - 1]).addTo(shipmentMap)
-    .bindPopup("🏁 Illustrative destination");
+      L.tileLayer(
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }
+      ).addTo(shipmentMap);
 
-  routeLine = L.polyline(shipmentRoute, {
-    color: "#23d9ff", weight: 4, dashArray: "8, 8"
-  }).addTo(shipmentMap);
+      L.marker(shipmentRoute[0])
+        .addTo(shipmentMap)
+        .bindPopup("Origin: Chennai");
 
-  shipmentMarker = L.marker(shipmentRoute[0]).addTo(shipmentMap)
-    .bindPopup("CC-001 — Simulated shipment location");
-  shipmentMap.fitBounds(routeLine.getBounds(), {padding: [25, 25]});
-  setTimeout(() => shipmentMap && shipmentMap.invalidateSize(), 250);
+      L.marker(shipmentRoute[shipmentRoute.length - 1])
+        .addTo(shipmentMap)
+        .bindPopup("Illustrative destination");
+
+      routeLine = L.polyline(shipmentRoute, {
+        color: "#23d9ff",
+        weight: 4,
+        dashArray: "8, 8"
+      }).addTo(shipmentMap);
+
+      shipmentMarker = L.marker(shipmentRoute[0])
+        .addTo(shipmentMap)
+        .bindPopup("CC-001 — Simulated shipment location");
+
+      shipmentMap.fitBounds(routeLine.getBounds(), {
+        padding: [25, 25]
+      });
+    } catch (error) {
+      shipmentMap = null;
+
+      if (gpsMessage) {
+        gpsMessage.className = "alert danger";
+        gpsMessage.textContent =
+          "Map could not initialize. Check the browser console and refresh.";
+      }
+      console.error("Shipment map initialization failed:", error);
+      return;
+    }
+  }
+
+  // Recalculate dimensions after the hidden section becomes visible.
+  requestAnimationFrame(() => {
+    if (shipmentMap) {
+      shipmentMap.invalidateSize();
+      if (routeLine) {
+        shipmentMap.fitBounds(routeLine.getBounds(), {
+          padding: [25, 25]
+        });
+      }
+    }
+  });
 }
-
 function focusShipmentMap() {
   if (!shipmentMap) initializeShipmentMap();
   if (shipmentMap && routeLine) shipmentMap.fitBounds(routeLine.getBounds(), {padding: [25, 25]});
@@ -1195,76 +1217,7 @@ function showShipmentRoute() {
   }, 1200);
 }
 
-
-// ===== EMERGENCY SOS DEMO (SIMULATED SENSOR INPUT ONLY) =====
-let demoSOSActive = false;
-let demoSOSEvents = [];
-try {
-  const savedSOSEvents = JSON.parse(localStorage.getItem("coldchainDemoSOSEvents") || "[]");
-  if (Array.isArray(savedSOSEvents)) demoSOSEvents = savedSOSEvents;
-} catch (error) {
-  demoSOSEvents = [];
-}
-
-function renderDemoSOSEvents() {
-  const log = document.getElementById("sosEventLog");
-  const last = document.getElementById("sosLastEvent");
-  if (!log || !last) return;
-  if (!demoSOSEvents.length) {
-    log.textContent = "No simulated events recorded.";
-    last.textContent = "None";
-    return;
-  }
-  last.textContent = demoSOSEvents[0].time;
-  log.replaceChildren();
-  demoSOSEvents.slice(0, 10).forEach(event => {
-    const row = document.createElement("p");
-    row.textContent = "🆘 SIMULATED SOS — " + event.time + " — " + event.message;
-    log.appendChild(row);
-  });
-}
-
-function triggerDemoSOS() {
-  // This button imitates a connected sensor signal; it is not real crash detection.
-  demoSOSActive = true;
-  const now = new Date();
-  const event = {
-    time: now.toLocaleString(),
-    timestamp: now.getTime(),
-    message: "Simulated vehicle impact signal received. Dashboard SOS activated."
-  };
-  demoSOSEvents.unshift(event);
-  demoSOSEvents = demoSOSEvents.slice(0, 50);
-  try { localStorage.setItem("coldchainDemoSOSEvents", JSON.stringify(demoSOSEvents)); } catch (error) {}
-
-  const status = document.getElementById("sosStatus");
-  status.textContent = "🆘 SIMULATED SOS ACTIVE — crash signal received at " + event.time + ". No emergency services were contacted.";
-  status.style.background = "#7f1d1d";
-  status.style.color = "#ffffff";
-  status.style.borderColor = "#ef4444";
-  document.getElementById("sosAlertState").textContent = "DEMO SOS ACTIVE";
-  document.getElementById("simulateCrashButton").disabled = true;
-  document.getElementById("simulateCrashButton").textContent = "SOS Active — Acknowledge to Reset";
-  renderDemoSOSEvents();
-}
-
-function acknowledgeDemoSOS() {
-  demoSOSActive = false;
-  const status = document.getElementById("sosStatus");
-  status.textContent = "🟢 DEMO RESET — waiting for a simulated sensor signal. No real emergency was reported.";
-  status.style.background = "#f1f5f9";
-  status.style.color = "#0f172a";
-  status.style.borderColor = "#64748b";
-  document.getElementById("sosAlertState").textContent = "READY";
-  const button = document.getElementById("simulateCrashButton");
-  button.disabled = false;
-  button.textContent = "🆘 Inject Simulated Crash Signal";
-}
-
-renderDemoSOSEvents();
-// ===== END EMERGENCY SOS DEMO =====
-
-const viewIds = ["dashboard", "simulator", "history", "alerts", "prediction", "tracking", "emergency", "climateController", "settings"];
+const viewIds = ["dashboard", "simulator", "history", "alerts", "prediction", "tracking", "climateController", "settings"];
 document.querySelectorAll(".nav-item").forEach(item => {
   item.addEventListener("click", () => {
     document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
@@ -1275,12 +1228,21 @@ document.querySelectorAll(".nav-item").forEach(item => {
       document.getElementById(id).classList.toggle("hidden", !show);
     });
     if (view === "history") setTimeout(drawChart, 50);
-    if (view === "tracking") {
+    ```js
+if (view === "tracking") {
+  setTimeout(() => {
+    initializeShipmentMap();
+
+    if (shipmentMap) {
+      shipmentMap.invalidateSize(true);
+
       setTimeout(() => {
-        initializeShipmentMap();
-        if (shipmentMap) shipmentMap.invalidateSize();
-      }, 100);
+        shipmentMap.invalidateSize(true);
+      }, 300);
     }
+  }, 250);
+}
+```
   });
 });
 
@@ -1630,7 +1592,7 @@ function setClimateMessage(message, state) {
     const password = passwordInput.value;
 
     if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-      sessionStorage.setItem("coldchainDemoLogin", "true");
+      localStorage.setItem("coldchainDemoLogin", "true");
       passwordInput.value = "";
       showDashboard();
     } else {
@@ -1649,7 +1611,7 @@ function setClimateMessage(message, state) {
   logoutButton.type = "button";
   logoutButton.textContent = "Log Out";
   logoutButton.addEventListener("click", () => {
-    sessionStorage.removeItem("coldchainDemoLogin");
+    localStorage.removeItem("coldchainDemoLogin");
     showLogin();
     errorBox.textContent = "";
     emailInput.focus();
@@ -1660,7 +1622,7 @@ function setClimateMessage(message, state) {
   }
 
   // Restore the demo login for this browser tab.
-  if (sessionStorage.getItem("coldchainDemoLogin") === "true") {
+  if (localStorage.getItem("coldchainDemoLogin") === "true") {
     showDashboard();
   } else {
     showLogin();
